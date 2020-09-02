@@ -37,16 +37,12 @@ namespace Vault
         [DisplayName("deposit")]
         public static bool deposit(byte[] hash, BigInteger amount) => true;
         [DisplayName("withdraw")]
-        public static bool withdraw(byte[] hash, BigInteger amount, string key, BigInteger refund) => true;
+        public static bool withdraw(byte[] hash, BigInteger amount) => true;
         // custom
         [DisplayName("action")]
-        public static bool action(string key) => true;
+        public static bool action(string key, object[] args) => true;
         [DisplayName("setAction")]
-        public static bool setAction(string key, Action action) => true;
-        [DisplayName("setRefund")]
-        public static bool setRefund(string key, BigInteger num, Action action) => true;
-        [DisplayName("setSource")]
-        public static bool setSource(Action[] actions) => true;
+        public static bool setAction(Map<string, byte[]> action) => true;
         [DisplayName("setGovernance")]
         public static bool setGovernance(byte[] hash) => true;
         [DisplayName("setStrategist")]
@@ -128,7 +124,7 @@ namespace Vault
                 }
                 if (method == "withdraw")
                 {
-                    WithdrawToken((byte[])args[0], (BigInteger)args[1], (string)args[2], (BigInteger)args[3]);
+                    WithdrawToken((byte[])args[0], (BigInteger)args[1]);
                     return true;
                 }
             }
@@ -154,33 +150,27 @@ namespace Vault
             AddTotal(amount);
             AddBalance(hash, amount);
         }
-        private static void WithdrawToken(byte[] hash, BigInteger amount, string key, BigInteger refund)
+        private static void WithdrawToken(byte[] hash, BigInteger amount)
         {
             CheckHash(hash);
             CheckWitness(hash);
             CheckPositive(amount);
-            CheckKey(key);
-            CheckNonNegative(refund);
-            BigInteger pool = GetVaultBalance();
-            BigInteger ex = GetExternBalance();
-            BigInteger all = pool + ex;
+            BigInteger inside = GetVaultBalance();
+            BigInteger outside = GetExternBalance();
+            BigInteger all = inside + outside;
             BigInteger total = GetTotalSupply();
-            CheckNonNegative(pool);
-            CheckNonNegative(ex);
+            CheckNonNegative(inside);
+            CheckNonNegative(outside);
             CheckNonNegative(all);
             CheckPositive(total);
             BigInteger num = amount * all / total;
-            if (pool < num)
-            {
-                BigInteger need = num - pool;
-                BigInteger delta = need - refund;
-                CheckPositive(need);
-                CheckPositive(delta);
-                RefundToken(key, refund);
-                num -= delta;
-            }
             CheckPositive(num);
-            CheckPositive(amount);
+            if (inside < num)
+            {
+                BigInteger need = num - inside;
+                CheckPositive(need);
+                RefundToken(need);
+            }
             SubTotal(amount);
             SubBalance(hash, amount);
             SendTarget(hash, num);
@@ -260,14 +250,33 @@ namespace Vault
             return balance.Get(hash).AsBigInteger();
         }
         // util
-        private static void RefundToken(string key, BigInteger num)
+        private static void RefundToken(BigInteger num)
         {
             StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
             Map<string, byte[]> map = (Map<string, byte[]>)contract.Get("actions").Deserialize();
-            byte[] hash = map[key];
-            object[] args = new object[] { num };
-            CallContract call = (CallContract)hash.ToDelegate();
-            call("refund", args);
+            foreach (byte[] hash in map.Values)
+            {
+                if (num <= 0)
+                {
+                    return;
+                }
+                BigInteger amount = num;
+                {
+                    object[] args = new object[] { };
+                    CallContract call = (CallContract)hash.ToDelegate();
+                    BigInteger balance = (BigInteger)call("balance", args);
+                    if (balance <= amount)
+                    {
+                        amount = balance;
+                    }
+                }
+                {
+                    object[] args = new object[] { amount };
+                    CallContract call = (CallContract)hash.ToDelegate();
+                    call("refund", args);
+                }
+                num -= amount;
+            }
         }
         private static void RecvTarget(byte[] hash, BigInteger amount)
         {
