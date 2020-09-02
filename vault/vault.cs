@@ -9,13 +9,60 @@ namespace Vault
 {
     public class Vault : SmartContract
     {
+        // constants
         private static readonly byte[] TargetToken = "2b652312db6282b5731cd0c888b7c08b20737550".HexToBytes();
         private static readonly string SymbolName = "flamDEMO";
         private static readonly string TokenName = "flamincome DEMO";
         private static readonly byte TokenDecimals = 8;
+        // predefs
         [DisplayName("transfer")]
         public static event Action<byte[], byte[], BigInteger> EventTransfer;
         delegate object CallContract(string method, object[] args);
+#if DEBUG
+        // NEP-5
+        [DisplayName("balanceOf")]
+        public static BigInteger balanceOf(byte[] account) => 0;
+        [DisplayName("decimals")]
+        public static byte decimals() => 0;
+        [DisplayName("name")]
+        public static string name() => "";
+        [DisplayName("symbol")]
+        public static string symbol() => "";
+        [DisplayName("supportedStandards")]
+        public static string[] supportedStandards() => new string[] { "NEP-5", "NEP-7", "NEP-10" };
+        [DisplayName("totalSupply")]
+        public static BigInteger totalSupply() => 0;
+        [DisplayName("transfer")]
+        public static bool transfer(byte[] from, byte[] to, BigInteger amount) => true;
+        [DisplayName("deposit")]
+        public static bool deposit(byte[] hash, BigInteger amount) => true;
+        [DisplayName("withdraw")]
+        public static bool withdraw(byte[] hash, BigInteger amount, string key, BigInteger refund) => true;
+        // custom
+        [DisplayName("action")]
+        public static bool action(string key) => true;
+        [DisplayName("setAction")]
+        public static bool setAction(string key, Action action) => true;
+        [DisplayName("setRefund")]
+        public static bool setRefund(string key, BigInteger num, Action action) => true;
+        [DisplayName("setSource")]
+        public static bool setSource(Action[] actions) => true;
+        [DisplayName("setGovernance")]
+        public static bool setGovernance(byte[] hash) => true;
+        [DisplayName("setStrategist")]
+        public static bool setStrategist(byte[] hash) => true;
+        class ContractStorage
+        {
+            class contract
+            {
+                BigInteger total;
+                Map<string, byte[]> actions;
+                byte[] governance;
+                byte[] strategist;
+            };
+            class balance : Map<byte[], BigInteger> { };
+        };
+#endif
         public static object Main(string method, object[] args)
         {
             if (Runtime.Trigger == TriggerType.Verification)
@@ -27,7 +74,7 @@ namespace Vault
             {
                 if (method == "action")
                 {
-                    DoAction((string)args[0]);
+                    DoAction((string)args[0], (object[])args[1]);
                     return true;
                 }
                 if (method == "balanceOf")
@@ -49,22 +96,12 @@ namespace Vault
                 }
                 if (method == "setAction")
                 {
-                    SetAction((string)args[0], (Action)args[1]);
+                    SetAction((Map<string, byte[]>)args[0]);
                     return true;
                 }
                 if (method == "setGovernance")
                 {
                     SetGovernance((byte[])args[0]);
-                    return true;
-                }
-                if (method == "setRefund")
-                {
-                    SetRefund((string)args[0], (BigInteger)args[1], (Action)args[2]);
-                    return true;
-                }
-                if (method == "setSource")
-                {
-                    SetSource((Action[])args[0]);
                     return true;
                 }
                 if (method == "setStrategist")
@@ -82,7 +119,7 @@ namespace Vault
                 }
                 if (method == "totalSupply")
                 {
-                    return GetTotal();
+                    return GetTotalSupply();
                 }
                 if (method == "transfer")
                 {
@@ -97,51 +134,19 @@ namespace Vault
             }
             return false;
         }
-#if DEBUG
-        [DisplayName("balanceOf")]
-        public static BigInteger balanceOf(byte[] account) => 0;
-        [DisplayName("decimals")]
-        public static byte decimals() => 0;
-        [DisplayName("name")]
-        public static string name() => "";
-        [DisplayName("symbol")]
-        public static string symbol() => "";
-        [DisplayName("supportedStandards")]
-        public static string[] supportedStandards() => new string[] { "NEP-5", "NEP-7", "NEP-10" };
-        [DisplayName("totalSupply")]
-        public static BigInteger totalSupply() => 0;
-        [DisplayName("transfer")]
-        public static bool transfer(byte[] from, byte[] to, BigInteger amount) => true;
-        [DisplayName("deposit")]
-        public static bool deposit(byte[] hash, BigInteger amount) => true;
-        [DisplayName("withdraw")]
-        public static bool withdraw(byte[] hash, BigInteger amount, string key, BigInteger refund) => true;
-        [DisplayName("action")]
-        public static bool action(string key) => true;
-        [DisplayName("setAction")]
-        public static bool setAction(string key, Action action) => true;
-        [DisplayName("setRefund")]
-        public static bool setRefund(string key, BigInteger num, Action action) => true;
-        [DisplayName("setSource")]
-        public static bool setSource(Action[] actions) => true;
-        [DisplayName("setGovernance")]
-        public static bool setGovernance(byte[] hash) => true;
-        [DisplayName("setStrategist")]
-        public static bool setStrategist(byte[] hash) => true;
-#endif
         // user
         private static void DepositToken(byte[] hash, BigInteger amount)
         {
             CheckHash(hash);
             CheckPositive(amount);
-            BigInteger pool = GetPool();
-            BigInteger ex = GetExtern();
+            BigInteger pool = GetVaultBalance();
+            BigInteger ex = GetExternBalance();
             BigInteger all = pool + ex;
             CheckNonNegative(all);
             RecvTarget(hash, amount);
             if (all > 0)
             {
-                BigInteger total = GetTotal();
+                BigInteger total = GetTotalSupply();
                 amount = amount * total / all;
             }
 
@@ -155,11 +160,11 @@ namespace Vault
             CheckWitness(hash);
             CheckPositive(amount);
             CheckKey(key);
-            CheckPositive(refund);
-            BigInteger pool = GetPool();
-            BigInteger ex = GetExtern();
+            CheckNonNegative(refund);
+            BigInteger pool = GetVaultBalance();
+            BigInteger ex = GetExternBalance();
             BigInteger all = pool + ex;
-            BigInteger total = GetTotal();
+            BigInteger total = GetTotalSupply();
             CheckNonNegative(pool);
             CheckNonNegative(ex);
             CheckNonNegative(all);
@@ -175,6 +180,7 @@ namespace Vault
                 num -= delta;
             }
             CheckPositive(num);
+            CheckPositive(amount);
             SubTotal(amount);
             SubBalance(hash, amount);
             SendTarget(hash, num);
@@ -182,46 +188,31 @@ namespace Vault
         private static void TransferToken(byte[] from, byte[] to, BigInteger amount)
         {
             CheckHash(from);
+            CheckWitness(from);
             CheckHash(to);
             CheckPositive(amount);
-            CheckWitness(from);
             SubBalance(from, amount);
             AddBalance(to, amount);
             EventTransfer(from, to, amount);
         }
         // strategist
-        private static object DoAction(string key)
+        private static void DoAction(string key, object[] args)
         {
             CheckStrategist();
             CheckKey(key);
-            StorageMap whitelist = Storage.CurrentContext.CreateMap(nameof(whitelist));
-            byte[] value = whitelist.Get(key);
-            Action action = (Action)value.Deserialize();
-            CallContract call = (CallContract)action.hash.ToDelegate();
-            object ret = call(action.method, action.args);
-            return ret;
+            StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
+            Map<string, byte[]> map = (Map<string, byte[]>)contract.Get("actions").Deserialize();
+            byte[] hash = map[key];
+            CallContract call = (CallContract)hash.ToDelegate();
+            call("do", args);
         }
         // governance
-        private static void SetAction(string key, Action action)
+        private static void SetAction(Map<string, byte[]> map)
         {
             CheckGovernance();
-            CheckKey(key);
-            StorageMap whitelist = Storage.CurrentContext.CreateMap(nameof(whitelist));
-            whitelist.Put(key, action.Serialize());
-        }
-        private static void SetRefund(string key, BigInteger num, Action action)
-        {
-            CheckGovernance();
-            CheckKey(key);
-            CheckPositive(num);
-            StorageMap refund = Storage.CurrentContext.CreateMap(nameof(refund));
-            refund.Put(key.AsByteArray().Concat(num.ToByteArray()), action.Serialize());
-        }
-        private static void SetSource(Action[] actions)
-        {
-            CheckGovernance();
+            byte[] data = map.Serialize();
             StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
-            contract.Put("source", actions.Serialize());
+            contract.Put("actions", data);
         }
         private static void SetGovernance(byte[] hash)
         {
@@ -238,30 +229,26 @@ namespace Vault
             contract.Put("strategist", hash);
         }
         // readonly
-        private static Action[] GetSource()
-        {
-            StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
-            return (Action[])contract.Get("source").Deserialize();
-        }
-        private static BigInteger GetExtern()
+        private static BigInteger GetExternBalance()
         {
             BigInteger num = 0;
-            Action[] actions = GetSource();
-            for (var i = 0; i < actions.Length; i++)
+            StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
+            Map<string, byte[]> map = (Map<string, byte[]>)contract.Get("actions").Deserialize();
+            foreach (byte[] hash in map.Values)
             {
-                Action action = actions[i];
-                CallContract call = (CallContract)action.hash.ToDelegate();
-                num += (BigInteger)call(action.method, action.args);
+                object[] args = new object[] { };
+                CallContract call = (CallContract)hash.ToDelegate();
+                num += (BigInteger)call("balance", args);
             }
             return num;
         }
-        private static BigInteger GetPool()
+        private static BigInteger GetVaultBalance()
         {
-            CallContract call = (CallContract)TargetToken.ToDelegate();
             object[] args = new object[] { ExecutionEngine.ExecutingScriptHash };
+            CallContract call = (CallContract)TargetToken.ToDelegate();
             return (BigInteger)call("balanceOf", args);
         }
-        private static BigInteger GetTotal()
+        private static BigInteger GetTotalSupply()
         {
             StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
             return contract.Get("total").AsBigInteger();
@@ -275,17 +262,19 @@ namespace Vault
         // util
         private static void RefundToken(string key, BigInteger num)
         {
-            StorageMap refund = Storage.CurrentContext.CreateMap(nameof(refund));
-            byte[] value = refund.Get(key.AsByteArray().Concat(num.ToByteArray()));
-            Action action = (Action)value.Deserialize();
-            CallContract call = (CallContract)action.hash.ToDelegate();
-            call(action.method, action.args);
+            StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
+            Map<string, byte[]> map = (Map<string, byte[]>)contract.Get("actions").Deserialize();
+            byte[] hash = map[key];
+            object[] args = new object[] { num };
+            CallContract call = (CallContract)hash.ToDelegate();
+            call("refund", args);
         }
         private static void RecvTarget(byte[] hash, BigInteger amount)
         {
             CallContract call = (CallContract)TargetToken.ToDelegate();
             object[] args = new object[] { hash, ExecutionEngine.ExecutingScriptHash, amount };
-            if ((bool)call("transfer", args))
+            bool ret = (bool)call("transfer", args);
+            if (ret)
             {
                 return;
             }
@@ -295,37 +284,33 @@ namespace Vault
         {
             CallContract call = (CallContract)TargetToken.ToDelegate();
             object[] args = new object[] { ExecutionEngine.ExecutingScriptHash, hash, amount };
-            if ((bool)call("transfer", args))
+            bool ret = (bool)call("transfer", args);
+            if (ret)
             {
                 return;
             }
             throw new InvalidOperationException(nameof(SendTarget));
         }
-        private static void SetBalance(byte[] hash, BigInteger amount)
-        {
-            CheckNonNegative(amount);
-            StorageMap balance = Storage.CurrentContext.CreateMap(nameof(balance));
-            balance.Put(hash, amount);
-        }
         private static void AddBalance(byte[] hash, BigInteger amount)
         {
-            CheckPositive(amount);
-            BigInteger num = GetBalance(hash);
+            StorageMap balance = Storage.CurrentContext.CreateMap(nameof(balance));
+            BigInteger num = balance.Get(hash).AsBigInteger();
             num += amount;
-            SetBalance(hash, num);
+            CheckNonNegative(num);
+            balance.Put(hash, num);
         }
         private static void SubBalance(byte[] hash, BigInteger amount)
         {
-            CheckPositive(amount);
-            BigInteger num = GetBalance(hash);
+            StorageMap balance = Storage.CurrentContext.CreateMap(nameof(balance));
+            BigInteger num = balance.Get(hash).AsBigInteger();
             num -= amount;
-            SetBalance(hash, num);
+            CheckNonNegative(num);
+            balance.Put(hash, num);
         }
         private static void AddTotal(BigInteger amount)
         {
             StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
             BigInteger total = contract.Get("total").AsBigInteger();
-            CheckPositive(amount);
             total += amount;
             CheckNonNegative(total);
             contract.Put("total", total);
@@ -334,7 +319,6 @@ namespace Vault
         {
             StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
             BigInteger total = contract.Get("total").AsBigInteger();
-            CheckPositive(amount);
             total -= amount;
             CheckNonNegative(total);
             contract.Put("total", total);
@@ -403,13 +387,6 @@ namespace Vault
                 return;
             }
             throw new InvalidOperationException(nameof(CheckWitness));
-        }
-        // struct
-        public struct Action
-        {
-            public byte[] hash;
-            public string method;
-            public object[] args;
         }
     }
 }
