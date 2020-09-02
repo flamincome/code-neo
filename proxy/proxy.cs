@@ -76,11 +76,7 @@ namespace Proxy
             {
                 return;
             }
-            if (Runtime.CheckWitness(hash))
-            {
-                return;
-            }
-            throw new InvalidOperationException(nameof(CheckGovernance));
+            CheckWitness(hash);
         }
         private static void CheckStrategist()
         {
