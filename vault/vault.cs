@@ -9,9 +9,9 @@ namespace Vault
 {
     public class Vault : SmartContract
     {
-        private static readonly byte[] TargetToken = "Ae2d6qj91YL3LVUMkza7WQsaTYjzjHm4z1".ToScriptHash();
-        private static readonly string SymbolName = "flamCNEO";
-        private static readonly string TokenName = "flamincome-CNEO";
+        private static readonly byte[] TargetToken = "2b652312db6282b5731cd0c888b7c08b20737550".HexToBytes();
+        private static readonly string SymbolName = "flamDEMO";
+        private static readonly string TokenName = "flamincome DEMO";
         private static readonly byte TokenDecimals = 8;
         [DisplayName("transfer")]
         public static event Action<byte[], byte[], BigInteger> EventTransfer;
@@ -348,11 +348,7 @@ namespace Vault
             {
                 return;
             }
-            if (Runtime.CheckWitness(hash))
-            {
-                return;
-            }
-            throw new InvalidOperationException(nameof(CheckGovernance));
+            CheckWitness(hash);
         }
         private static void CheckStrategist()
         {
@@ -362,11 +358,7 @@ namespace Vault
             {
                 return;
             }
-            if (Runtime.CheckWitness(hash))
-            {
-                return;
-            }
-            throw new InvalidOperationException(nameof(CheckStrategist));
+            CheckWitness(hash);
         }
         private static void CheckHash(byte[] hash)
         {
