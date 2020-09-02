@@ -189,7 +189,6 @@ namespace Vault
         private static void DoAction(string key, object[] args)
         {
             CheckStrategist();
-            CheckKey(key);
             StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
             Map<string, byte[]> map = (Map<string, byte[]>)contract.Get("actions").Deserialize();
             byte[] hash = map[key];
@@ -356,14 +355,6 @@ namespace Vault
         private static void CheckHash(byte[] hash)
         {
             if (hash.Length == 20)
-            {
-                return;
-            }
-            throw new InvalidOperationException(nameof(CheckHash));
-        }
-        private static void CheckKey(string key)
-        {
-            if (key.Length == 0x10)
             {
                 return;
             }
