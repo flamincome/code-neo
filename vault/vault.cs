@@ -10,7 +10,7 @@ namespace Vault
     public class Vault : SmartContract
     {
         // constants
-        private static readonly byte[] TargetToken = "2b652312db6282b5731cd0c888b7c08b20737550".HexToBytes();
+        private static readonly byte[] TargetToken = "110e493ab5703f2fb8d1b0570397f8357e153318".HexToBytes();
         private static readonly string SymbolName = "flamDEMO";
         private static readonly string TokenName = "flamincome DEMO";
         private static readonly byte TokenDecimals = 8;
@@ -55,12 +55,17 @@ namespace Vault
                 Map<string, byte[]> actions;
                 byte[] governance;
                 byte[] strategist;
+                byte[] FUCKNEOCALLER;
             };
             class balance : Map<byte[], BigInteger> { };
         };
 #endif
         public static object Main(string method, object[] args)
         {
+            byte[] FUCKNEOCALLER = ExecutionEngine.CallingScriptHash;
+            StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
+            contract.Put("FUCKNEOCALLER", FUCKNEOCALLER);
+
             if (Runtime.Trigger == TriggerType.Verification)
             {
                 CheckGovernance();
@@ -144,7 +149,6 @@ namespace Vault
                 BigInteger total = GetTotalSupply();
                 amount = amount * total / all;
             }
-
             CheckPositive(amount);
             AddTotal(amount);
             AddBalance(hash, amount);
@@ -185,14 +189,7 @@ namespace Vault
             {
                 return false;
             }
-            Contract contract = Blockchain.GetContract(to);
-            if (contract != null)
-            {
-                if (contract.IsPayable == false)
-                {
-                    return false;
-                }
-            }
+            // NOTE: WE DON'T OBEY THE NEP-5 ISPAYABLE CHECKING CONSTRAINT
             if (amount > 0)
             {
                 SubBalance(from, amount);
@@ -295,8 +292,8 @@ namespace Vault
         }
         private static void RecvTarget(byte[] hash, BigInteger amount)
         {
-            CallContract call = (CallContract)TargetToken.ToDelegate();
             object[] args = new object[] { hash, ExecutionEngine.ExecutingScriptHash, amount };
+            CallContract call = (CallContract)TargetToken.ToDelegate();
             bool ret = (bool)call("transfer", args);
             if (ret)
             {
@@ -306,8 +303,8 @@ namespace Vault
         }
         private static void SendTarget(byte[] hash, BigInteger amount)
         {
-            CallContract call = (CallContract)TargetToken.ToDelegate();
             object[] args = new object[] { ExecutionEngine.ExecutingScriptHash, hash, amount };
+            CallContract call = (CallContract)TargetToken.ToDelegate();
             bool ret = (bool)call("transfer", args);
             if (ret)
             {
@@ -398,7 +395,9 @@ namespace Vault
             {
                 return;
             }
-            if (hash.AsBigInteger() == ExecutionEngine.CallingScriptHash.AsBigInteger())
+            StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
+            byte[] FUCKNEOCALLER = contract.Get("FUCKNEOCALLER");
+            if (hash.AsBigInteger() == FUCKNEOCALLER.AsBigInteger())
             {
                 return;
             }
