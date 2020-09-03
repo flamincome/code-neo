@@ -119,8 +119,7 @@ namespace Vault
                 }
                 if (method == "transfer")
                 {
-                    TransferToken((byte[])args[0], (byte[])args[1], (BigInteger)args[2]);
-                    return true;
+                    return TransferToken((byte[])args[0], (byte[])args[1], (BigInteger)args[2]);
                 }
                 if (method == "withdraw")
                 {
@@ -175,15 +174,32 @@ namespace Vault
             SubBalance(hash, amount);
             SendTarget(hash, num);
         }
-        private static void TransferToken(byte[] from, byte[] to, BigInteger amount)
+        private static bool TransferToken(byte[] from, byte[] to, BigInteger amount)
         {
             CheckHash(from);
             CheckWitness(from);
             CheckHash(to);
-            CheckPositive(amount);
-            SubBalance(from, amount);
-            AddBalance(to, amount);
+            CheckNonNegative(amount);
+            BigInteger balance = GetBalance(from);
+            if (balance < amount)
+            {
+                return false;
+            }
+            Contract contract = Blockchain.GetContract(to);
+            if (contract != null)
+            {
+                if (contract.IsPayable == false)
+                {
+                    return false;
+                }
+            }
+            if (amount > 0)
+            {
+                SubBalance(from, amount);
+                AddBalance(to, amount);
+            }
             EventTransfer(from, to, amount);
+            return true;
         }
         // strategist
         private static void DoAction(string key, object[] args)
