@@ -149,9 +149,9 @@ namespace Vault
         {
             CheckHash(hash);
             CheckPositive(amount);
-            BigInteger pool = GetVaultBalance();
-            BigInteger ex = GetExternBalance();
-            BigInteger all = pool + ex;
+            BigInteger inside = GetVaultBalance();
+            BigInteger outside = GetExternBalance();
+            BigInteger all = inside + outside;
             CheckNonNegative(all);
             RecvTarget(hash, amount);
             if (all > 0)
