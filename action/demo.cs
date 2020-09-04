@@ -15,7 +15,7 @@ namespace Proxy
         delegate object CallContract(string method, object[] args);
         public static object Main(string method, object[] args)
         {
-            byte[] FUCKNEOCALLER = ExecutionEngine.CallingScriptHash;
+            byte[] WTFCALLER = ExecutionEngine.CallingScriptHash;
             if (Runtime.Trigger == TriggerType.Verification)
             {
                 return true;
@@ -25,7 +25,7 @@ namespace Proxy
                 if (method == "do")
                 {
                     BigInteger amount = (BigInteger)args[0];
-                    object[] args = new object[] { FUCKNEOCALLER, ExecutionEngine.ExecutingScriptHash, amount };
+                    object[] args = new object[] { WTFCALLER, ExecutionEngine.ExecutingScriptHash, amount };
                     CallContract call = (CallContract)TargetToken.ToDelegate();
                     bool ret = (bool)call("transfer", args);
                     if (ret)
@@ -37,7 +37,7 @@ namespace Proxy
                 if (method == "refund")
                 {
                     BigInteger amount = (BigInteger)args[0];
-                    object[] args = new object[] { ExecutionEngine.ExecutingScriptHash, FUCKNEOCALLER, amount };
+                    object[] args = new object[] { ExecutionEngine.ExecutingScriptHash, WTFCALLER, amount };
                     CallContract call = (CallContract)TargetToken.ToDelegate();
                     bool ret = (bool)call("transfer", args);
                     if (ret)

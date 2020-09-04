@@ -55,21 +55,21 @@ namespace Vault
                 Map<string, byte[]> actions;
                 byte[] governance;
                 byte[] strategist;
-                byte[] FUCKNEOCALLER;
-                byte[] FUCKNEOBYPASS;
+                byte[] WTFCALLER;
+                byte[] WTFBYPASS;
             };
             class balance : Map<byte[], BigInteger> { };
         };
 #endif
         public static object Main(string method, object[] args)
         {
-            byte[] FUCKNEOCALLER = ExecutionEngine.CallingScriptHash;
+            byte[] WTFCALLER = ExecutionEngine.CallingScriptHash;
             StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
-            contract.Put("FUCKNEOCALLER", FUCKNEOCALLER);
+            contract.Put("WTFCALLER", WTFCALLER);
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
-                byte[] flag = contract.Get("FUCKNEOBYPASS");
+                byte[] flag = contract.Get("WTFBYPASS");
                 if (flag.Length > 0)
                 {
                     return true;
@@ -209,12 +209,12 @@ namespace Vault
         {
             CheckStrategist();
             StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
-            contract.Put("FUCKNEOBYPASS", 1);
+            contract.Put("WTFBYPASS", 1);
             Map<string, byte[]> map = (Map<string, byte[]>)contract.Get("actions").Deserialize();
             byte[] hash = map[key];
             CallContract call = (CallContract)hash.ToDelegate();
             call("do", args);
-            contract.Delete("FUCKNEOBYPASS");
+            contract.Delete("WTFBYPASS");
         }
         // governance
         private static void SetAction(Map<string, byte[]> map)
@@ -404,8 +404,8 @@ namespace Vault
                 return;
             }
             StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
-            byte[] FUCKNEOCALLER = contract.Get("FUCKNEOCALLER");
-            if (hash.AsBigInteger() == FUCKNEOCALLER.AsBigInteger())
+            byte[] WTFCALLER = contract.Get("WTFCALLER");
+            if (hash.AsBigInteger() == WTFCALLER.AsBigInteger())
             {
                 return;
             }
