@@ -34,11 +34,11 @@ namespace Vault
         public static BigInteger totalSupply() => 0;
         [DisplayName("transfer")]
         public static bool transfer(byte[] from, byte[] to, BigInteger amount) => true;
+        // custom
         [DisplayName("deposit")]
         public static bool deposit(byte[] hash, BigInteger amount) => true;
         [DisplayName("withdraw")]
         public static bool withdraw(byte[] hash, BigInteger amount) => true;
-        // custom
         [DisplayName("action")]
         public static bool action(string key, object[] args) => true;
         [DisplayName("setAction")]
@@ -56,6 +56,7 @@ namespace Vault
                 byte[] governance;
                 byte[] strategist;
                 byte[] FUCKNEOCALLER;
+                byte[] FUCKNEOBYPASS;
             };
             class balance : Map<byte[], BigInteger> { };
         };
@@ -68,6 +69,11 @@ namespace Vault
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
+                byte[] flag = contract.Get("FUCKNEOBYPASS");
+                if (flag.Length > 0)
+                {
+                    return true;
+                }
                 CheckGovernance();
                 return true;
             }
@@ -203,10 +209,12 @@ namespace Vault
         {
             CheckStrategist();
             StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
+            contract.Put("FUCKNEOBYPASS", 1);
             Map<string, byte[]> map = (Map<string, byte[]>)contract.Get("actions").Deserialize();
             byte[] hash = map[key];
             CallContract call = (CallContract)hash.ToDelegate();
             call("do", args);
+            contract.Delete("FUCKNEOBYPASS");
         }
         // governance
         private static void SetAction(Map<string, byte[]> map)
