@@ -13,7 +13,7 @@ namespace Proxy
         private static readonly byte[] TargetToken = "110e493ab5703f2fb8d1b0570397f8357e153318".HexToBytes();
         //predefs
         delegate object CallContract(string method, object[] args);
-        public static object Main(string method, object[] args)
+        public static object Main(string METHOD, object[] ARGS)
         {
             byte[] WTFCALLER = ExecutionEngine.CallingScriptHash;
             if (Runtime.Trigger == TriggerType.Verification)
@@ -22,9 +22,9 @@ namespace Proxy
             }
             else if (Runtime.Trigger == TriggerType.Application)
             {
-                if (method == "do")
+                if (METHOD == "do")
                 {
-                    BigInteger amount = (BigInteger)args[0];
+                    BigInteger amount = (BigInteger)ARGS[0];
                     object[] args = new object[] { WTFCALLER, ExecutionEngine.ExecutingScriptHash, amount };
                     CallContract call = (CallContract)TargetToken.ToDelegate();
                     bool ret = (bool)call("transfer", args);
@@ -32,11 +32,11 @@ namespace Proxy
                     {
                         return true;
                     }
-                    throw new InvalidOperationException(nameof(RecvTarget));
+                    throw new InvalidOperationException("do");
                 }
-                if (method == "refund")
+                if (METHOD == "refund")
                 {
-                    BigInteger amount = (BigInteger)args[0];
+                    BigInteger amount = (BigInteger)ARGS[0];
                     object[] args = new object[] { ExecutionEngine.ExecutingScriptHash, WTFCALLER, amount };
                     CallContract call = (CallContract)TargetToken.ToDelegate();
                     bool ret = (bool)call("transfer", args);
@@ -44,13 +44,13 @@ namespace Proxy
                     {
                         return true;
                     }
-                    throw new InvalidOperationException(nameof(RecvTarget));
+                    throw new InvalidOperationException("refund");
                 }
-                if (method == "balance")
+                if (METHOD == "balance")
                 {
                     object[] args = new object[] { ExecutionEngine.ExecutingScriptHash };
                     CallContract call = (CallContract)TargetToken.ToDelegate();
-                    bool ret = (bool)call("balanceOf", args);
+                    return call("balanceOf", args);
                 }
             }
             return false;
