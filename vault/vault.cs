@@ -10,9 +10,13 @@ namespace Vault
     public class Vault : SmartContract
     {
         // constants
+        // `110e493ab5703f2fb8d1b0570397f8357e153318` will be replace by the script hash of target token
         private static readonly byte[] TargetToken = "110e493ab5703f2fb8d1b0570397f8357e153318".HexToBytes();
-        private static readonly string SymbolName = "flamDEMO";
-        private static readonly string TokenName = "flamincome DEMO";
+        // `TARGET` will be replaced by the symbol of target token
+        private static readonly string SymbolName = "flamTARGET";
+        // `TARGET` will be replaced by the name of target token
+        private static readonly string TokenName = "flamincome TARGET";
+        // `8` will be replaced by the decimal of target token
         private static readonly byte TokenDecimals = 8;
         // predefs
         [DisplayName("transfer")]
@@ -195,7 +199,7 @@ namespace Vault
             {
                 return false;
             }
-            // NOTE: WE DON'T OBEY THE NEP-5 ISPAYABLE CHECKING CONSTRAINT
+            // NOTE: THE NEP-5 ISPAYABLE CHECKING CONSTRAINT IS NOT OBEYED
             if (amount > 0)
             {
                 SubBalance(from, amount);
