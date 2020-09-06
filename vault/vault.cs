@@ -5,6 +5,8 @@ using System;
 using System.ComponentModel;
 using System.Numerics;
 
+// WTF: IT IS CODING IN ASSEMBLY (EVEN WORSE) RATHER THAN CODING IN C#
+
 namespace Vault
 {
     public class Vault : SmartContract
@@ -18,11 +20,17 @@ namespace Vault
         private static readonly string TokenName = "flamincome TARGET";
         // `8` will be replaced by the decimal of target token
         private static readonly byte TokenDecimals = 8;
+        // WTF: PUSH2 + PACK + PUSH['action'] + APPCALL
+        private static readonly byte[] CMD_ACTION = "52c106616374696f6e67".HexToBytes();
+        // WTF: PUSH2 + PACK + PUSH['withdraw'] + APPCALL
+        private static readonly byte[] CMD_WITHDRAW = "52c108776974686472617767".HexToBytes();
         // predefs
         [DisplayName("transfer")]
+        // NEP-5 transfer event
         public static event Action<byte[], byte[], BigInteger> EventTransfer;
+        // dynamic call
         delegate object CallContract(string method, object[] args);
-#if DEBUG
+#if DEBUG // ONLY FOR ABI
         // NEP-5
         [DisplayName("balanceOf")]
         public static BigInteger balanceOf(byte[] account) => 0;
@@ -44,7 +52,7 @@ namespace Vault
         [DisplayName("withdraw")]
         public static bool withdraw(byte[] hash, BigInteger amount) => true;
         [DisplayName("action")]
-        public static bool action(string key, object[] args) => true;
+        public static bool action(string key, byte[] args) => true;
         [DisplayName("setAction")]
         public static bool setAction(Map<string, byte[]> action) => true;
         [DisplayName("setGovernance")]
@@ -60,32 +68,40 @@ namespace Vault
                 byte[] governance;
                 byte[] strategist;
                 byte[] WTFCALLER;
-                byte[] WTFBYPASS;
             };
             class balance : Map<byte[], BigInteger> { };
         };
 #endif
         public static object Main(string method, object[] args)
         {
-            byte[] WTFCALLER = ExecutionEngine.CallingScriptHash;
-            StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
-            contract.Put("WTFCALLER", WTFCALLER);
-
             if (Runtime.Trigger == TriggerType.Verification)
             {
-                byte[] flag = contract.Get("WTFBYPASS");
-                if (flag.Length > 0)
+                if (method == "governance")
                 {
+                    CheckGovernance();
                     return true;
                 }
-                CheckGovernance();
-                return true;
+                if (method == "strategist")
+                {
+                    CheckStrategist();
+                    CheckWTF(args[0], CMD_ACTION);
+                    return true;
+                }
+                if (method == "user")
+                {
+                    CheckWTF(args[0], CMD_WITHDRAW);
+                    return true;
+                }
+                return false;
             }
             else if (Runtime.Trigger == TriggerType.Application)
             {
+                object WTFCALLER = ExecutionEngine.CallingScriptHash;
+                StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
+                contract.Put("WTFCALLER", ((byte[])WTFCALLER));
                 if (method == "action")
                 {
-                    DoAction((string)args[0], (object[])args[1]);
+                    DoAction((string)args[0], (byte[])args[1]);
                     return true;
                 }
                 if (method == "balanceOf")
@@ -209,16 +225,15 @@ namespace Vault
             return true;
         }
         // strategist
-        private static void DoAction(string key, object[] args)
+        private static void DoAction(string key, byte[] bytes)
         {
             CheckStrategist();
             StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
-            contract.Put("WTFBYPASS", 1);
             Map<string, byte[]> map = (Map<string, byte[]>)contract.Get("actions").Deserialize();
             byte[] hash = map[key];
+            object[] args = new object[] { bytes };
             CallContract call = (CallContract)hash.ToDelegate();
             call("do", args);
-            contract.Delete("WTFBYPASS");
         }
         // governance
         private static void SetAction(Map<string, byte[]> map)
@@ -414,6 +429,89 @@ namespace Vault
                 return;
             }
             throw new InvalidOperationException(nameof(CheckWitness));
+        }
+        private static void CheckWTF(object obj, object cmd)
+        {
+            object length = 0;
+            object flag = ((byte[])obj).Range(2, 1);
+            if (flag.Equals(new byte[] { 0xFD }))
+            {
+                length = ((byte[])obj).Range(3, 2).Concat(new byte[] { 0x00 });
+            }
+            else if (flag.Equals(new byte[] { 0xFE }))
+            {
+                length = ((byte[])obj).Range(3, 4).Concat(new byte[] { 0x00 });
+            }
+            else if (flag.Equals(new byte[] { 0xFF }))
+            {
+                length = ((byte[])obj).Range(3, 8).Concat(new byte[] { 0x00 });
+            }
+            else
+            {
+                length = ((byte[])obj).Range(2, 1).Concat(new byte[] { 0x00 });
+            }
+            object script = ((byte[])obj).Range(3, ((int)length));
+            flag = ((byte[])script).Range(0, 1);
+            if (((BigInteger)flag) < 0)
+            {
+                throw new InvalidOperationException(nameof(CheckWTF));
+            }
+            else if (((BigInteger)flag) > 0x4E)
+            {
+                throw new InvalidOperationException(nameof(CheckWTF));
+            }
+            else if (((byte[])flag).Equals(new byte[] { 0x4E }))
+            {
+                flag = ((byte[])script).Range(1, 4).Concat(new byte[] { 0x00 });
+                script = ((byte[])script).Range(((int)flag) + 5, ((byte[])script).Length - 5 - ((int)flag));
+            }
+            else if (((byte[])flag).Equals(new byte[] { 0x4D }))
+            {
+                flag = ((byte[])script).Range(1, 2).Concat(new byte[] { 0x00 });
+                script = ((byte[])script).Range(((int)flag) + 3, ((byte[])script).Length - 3 - ((int)flag));
+            }
+            else if (((byte[])flag).Equals(new byte[] { 0x4C }))
+            {
+                flag = ((byte[])script).Range(1, 1).Concat(new byte[] { 0x00 });
+                script = ((byte[])script).Range(((int)flag) + 2, ((byte[])script).Length - 2 - ((int)flag));
+            }
+            else
+            {
+                script = ((byte[])script).Range(((int)flag) + 1, ((byte[])script).Length - 1 - ((int)flag));
+            }
+            flag = ((byte[])script).Range(0, 1);
+            if (((BigInteger)flag) < 0)
+            {
+                throw new InvalidOperationException(nameof(CheckWTF));
+            }
+            else if (((BigInteger)flag) > 0x40)
+            {
+                throw new InvalidOperationException(nameof(CheckWTF));
+            }
+            else
+            {
+                script = ((byte[])script).Range(((int)flag) + 1, ((byte[])script).Length - 1 - ((int)flag));
+            }
+            flag = ((byte[])script).Range(0, ((byte[])cmd).Length);
+            if (flag.Equals(cmd))
+            {
+                script = ((byte[])script).Range(((byte[])cmd).Length, ((byte[])script).Length - ((byte[])cmd).Length);
+            }
+            else
+            {
+                throw new InvalidOperationException(nameof(CheckWTF));
+            }
+            if (!((byte[])script).Equals(ExecutionEngine.ExecutingScriptHash))
+            {
+                throw new InvalidOperationException(nameof(CheckWTF));
+            }
+            object thathash = Hash256((byte[])obj);
+            object tx = ExecutionEngine.ScriptContainer;
+            object thishash = ((Transaction)tx).Hash;
+            if (((BigInteger)thishash) != ((BigInteger)thathash))
+            {
+                throw new InvalidOperationException(nameof(CheckWTF));
+            }
         }
     }
 }
