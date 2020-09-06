@@ -13,17 +13,17 @@ namespace Vault
     {
         // constants
         // `110e493ab5703f2fb8d1b0570397f8357e153318` will be replace by the script hash of target token
-        private static readonly byte[] TargetToken = "110e493ab5703f2fb8d1b0570397f8357e153318".HexToBytes();
+        private static readonly object TargetToken = "110e493ab5703f2fb8d1b0570397f8357e153318".HexToBytes();
         // `TARGET` will be replaced by the symbol of target token
-        private static readonly string SymbolName = "flamTARGET";
+        private static readonly object SymbolName = "flamTARGET";
         // `TARGET` will be replaced by the name of target token
-        private static readonly string TokenName = "flamincome TARGET";
+        private static readonly object TokenName = "flamincome TARGET";
         // `8` will be replaced by the decimal of target token
-        private static readonly byte TokenDecimals = 8;
+        private static readonly object TokenDecimals = 8;
         // WTF: PUSH2 + PACK + PUSH['action'] + APPCALL
-        private static readonly byte[] CMD_ACTION = "52c106616374696f6e67".HexToBytes();
+        private static readonly object CMD_ACTION = "52c106616374696f6e67".HexToBytes();
         // WTF: PUSH2 + PACK + PUSH['withdraw'] + APPCALL
-        private static readonly byte[] CMD_WITHDRAW = "52c108776974686472617767".HexToBytes();
+        private static readonly object CMD_WITHDRAW = "52c108776974686472617767".HexToBytes();
         // predefs
         [DisplayName("transfer")]
         // NEP-5 transfer event
@@ -232,7 +232,7 @@ namespace Vault
             object map = ((StorageMap)contract).Get("actions").Deserialize();
             object hash = ((Map<object, object>)map)[key];
             object args = new object[] { bytes };
-            ((CallContract)((byte[])hash).ToDelegate())("do", ((object[])args));
+            ((CallContract)hash)("do", ((object[])args));
         }
         // governance
         private static void SetAction(object map)
@@ -264,7 +264,7 @@ namespace Vault
             foreach (object hash in ((Map<string, byte[]>)map).Values)
             {
                 object args = new object[] { };
-                object item = ((CallContract)((byte[])hash).ToDelegate())("balance", ((object[])args));
+                object item = ((CallContract)hash)("balance", ((object[])args));
                 num = ((BigInteger)num) + ((BigInteger)item);
             }
             return num;
@@ -272,7 +272,7 @@ namespace Vault
         private static object GetVaultBalance()
         {
             object args = new object[] { ExecutionEngine.ExecutingScriptHash };
-            return ((CallContract)TargetToken.ToDelegate())("balanceOf", ((object[])args));
+            return ((CallContract)TargetToken)("balanceOf", ((object[])args));
         }
         private static object GetTotalSupply()
         {
@@ -299,7 +299,7 @@ namespace Vault
                 object amount = num;
                 {
                     object args = new object[] { };
-                    object balance = ((CallContract)((byte[])hash).ToDelegate())("balance", ((object[])args));
+                    object balance = ((CallContract)hash)("balance", ((object[])args));
                     if (((BigInteger)balance) <= ((BigInteger)amount))
                     {
                         amount = ((BigInteger)balance);
@@ -307,7 +307,7 @@ namespace Vault
                 }
                 {
                     object args = new object[] { amount };
-                    ((CallContract)((byte[])hash).ToDelegate())("refund", ((object[])args));
+                    ((CallContract)hash)("refund", ((object[])args));
                 }
                 num = ((BigInteger)num) - ((BigInteger)amount);
             }
@@ -315,7 +315,7 @@ namespace Vault
         private static void RecvTarget(object hash, object amount)
         {
             object args = new object[] { hash, ExecutionEngine.ExecutingScriptHash, amount };
-            object call = ((CallContract)TargetToken.ToDelegate())("transfer", ((object[])args));
+            object call = ((CallContract)TargetToken)("transfer", ((object[])args));
             if (((bool)call))
             {
                 return;
@@ -325,7 +325,7 @@ namespace Vault
         private static void SendTarget(object hash, object amount)
         {
             object args = new object[] { ExecutionEngine.ExecutingScriptHash, hash, amount };
-            object call = ((CallContract)TargetToken.ToDelegate())("transfer", ((object[])args));
+            object call = ((CallContract)TargetToken)("transfer", ((object[])args));
             if (((bool)call))
             {
                 return;
