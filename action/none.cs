@@ -35,7 +35,7 @@ namespace Action
         }
 #if DEBUG
         [DisplayName("do")]
-        public static bool do(byte[] bytes) => true;
+        public static bool @do(byte[] bytes) => true;
         [DisplayName("refund")]
         public static bool refund(BigInteger amount) => true;
         [DisplayName("balance")]

@@ -55,7 +55,7 @@ namespace Action
         }
 #if DEBUG
         [DisplayName("do")]
-        public static bool do() => true;
+        public static bool @do() => true;
         [DisplayName("refund")]
         public static bool refund(BigInteger amount) => true;
         [DisplayName("balance")]
