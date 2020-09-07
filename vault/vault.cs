@@ -14,12 +14,8 @@ namespace Vault
         // constants
         // `110e493ab5703f2fb8d1b0570397f8357e153318` will be replace by the script hash of target token
         private static readonly object TargetToken = "110e493ab5703f2fb8d1b0570397f8357e153318".HexToBytes();
-        // `TARGET` will be replaced by the symbol of target token
-        private static readonly object SymbolName = "flamTARGET";
-        // `TARGET` will be replaced by the name of target token
-        private static readonly object TokenName = "flamincome TARGET";
-        // `8` will be replaced by the decimal of target token
-        private static readonly object TokenDecimals = 8;
+        private static readonly object PREFIX = "flam";
+        private static readonly object PREFIXNAME = "flamincomed ";
         // WTF: PUSH2 + PACK + PUSH['action'] + APPCALL
         private static readonly object CMD_ACTION = "52c106616374696f6e67".HexToBytes();
         // WTF: PUSH2 + PACK + PUSH['withdraw'] + APPCALL
@@ -72,89 +68,123 @@ namespace Vault
             class balance : Map<byte[], BigInteger> { };
         };
 #endif
-        public static object Main(string method, object[] args)
+        public static object Main(string METHOD, object[] ARGS)
         {
+            object WTFCALLER = ExecutionEngine.CallingScriptHash;
+            StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
             if (Runtime.Trigger == TriggerType.Verification)
             {
-                if (method == "governance")
+                if (METHOD == "governance")
                 {
-                    CheckGovernance();
+                    object hash = ((StorageMap)contract).Get("governance");
+                    if (((byte[])hash).Length == 20)
+                    {
+                        CheckWitness(hash, WTFCALLER);
+                    }
                     return true;
                 }
-                if (method == "strategist")
+                if (METHOD == "strategist")
                 {
-                    CheckStrategist();
-                    CheckWTF(args[0], CMD_ACTION);
+                    object hash = ((StorageMap)contract).Get("strategist");
+                    if (((byte[])hash).Length == 20)
+                    {
+                        CheckWitness(hash, WTFCALLER);
+                    }
+                    CheckWTF(ARGS[0], CMD_ACTION);
                     return true;
                 }
-                if (method == "user")
+                if (METHOD == "user")
                 {
-                    CheckWTF(args[0], CMD_WITHDRAW);
+                    CheckWTF(ARGS[0], CMD_WITHDRAW);
                     return true;
                 }
                 return false;
             }
             else if (Runtime.Trigger == TriggerType.Application)
             {
-                object WTFCALLER = ExecutionEngine.CallingScriptHash;
-                StorageMap contract = Storage.CurrentContext.CreateMap(nameof(contract));
-                contract.Put("WTFCALLER", ((byte[])WTFCALLER));
-                if (method == "action")
+                if (METHOD == "action")
                 {
-                    DoAction(args[0], args[1]);
+                    object hash = ((StorageMap)contract).Get("strategist");
+                    if (((byte[])hash).Length == 20)
+                    {
+                        CheckWitness(hash, WTFCALLER);
+                    }
+                    DoAction(ARGS[0], ARGS[1]);
                     return true;
                 }
-                if (method == "balanceOf")
+                if (METHOD == "balanceOf")
                 {
-                    return GetBalance(args[0]);
+                    return GetBalance(ARGS[0]);
                 }
-                if (method == "decimals")
+                if (METHOD == "decimals")
                 {
-                    return TokenDecimals;
+                    object args = new object[] { };
+                    return ((CallContract)TargetToken)("decimals", ((object[])args));
                 }
-                if (method == "deposit")
+                if (METHOD == "deposit")
                 {
-                    DepositToken(args[0], args[1]);
+                    DepositToken(ARGS[0], ARGS[1]);
                     return true;
                 }
-                if (method == "name")
+                if (METHOD == "name")
                 {
-                    return TokenName;
+                    object args = new object[] { };
+                    object call = ((CallContract)TargetToken)("name", ((object[])args));
+                    return ((byte[])PREFIXNAME).Concat(((byte[])call));
                 }
-                if (method == "setAction")
+                if (METHOD == "setAction")
                 {
-                    SetAction(args[0]);
+                    object hash = ((StorageMap)contract).Get("governance");
+                    if (((byte[])hash).Length == 20)
+                    {
+                        CheckWitness(hash, WTFCALLER);
+                    }
+                    SetAction(ARGS[0]);
                     return true;
                 }
-                if (method == "setGovernance")
+                if (METHOD == "setGovernance")
                 {
-                    SetGovernance(args[0]);
+                    object hash = ((StorageMap)contract).Get("governance");
+                    if (((byte[])hash).Length == 20)
+                    {
+                        CheckWitness(hash, WTFCALLER);
+                    }
+                    SetGovernance(ARGS[0]);
                     return true;
                 }
-                if (method == "setStrategist")
+                if (METHOD == "setStrategist")
                 {
-                    SetStrategist(args[0]);
+                    object hash = ((StorageMap)contract).Get("governance");
+                    if (((byte[])hash).Length == 20)
+                    {
+                        CheckWitness(hash, WTFCALLER);
+                    }
+                    SetStrategist(ARGS[0]);
                     return true;
                 }
-                if (method == "supportedStandards")
+                if (METHOD == "supportedStandards")
                 {
                     return new string[] { "NEP-5", "NEP-7", "NEP-10" };
                 }
-                if (method == "symbol")
+                if (METHOD == "symbol")
                 {
-                    return SymbolName;
+                    object args = new object[] { };
+                    object call = ((CallContract)TargetToken)("symbol", ((object[])args));
+                    return ((byte[])PREFIX).Concat(((byte[])call));
                 }
-                if (method == "totalSupply")
+                if (METHOD == "totalSupply")
                 {
                     return GetTotalSupply();
                 }
-                if (method == "transfer")
+                if (METHOD == "transfer")
                 {
-                    return TransferToken(args[0], args[1], args[2]);
+                    CheckWitness(ARGS[0], WTFCALLER);
+                    return TransferToken(ARGS[0], ARGS[1], ARGS[2]);
                 }
-                if (method == "withdraw")
+                if (METHOD == "withdraw")
                 {
-                    WithdrawToken(args[0], args[1]);
+                    CheckWitness(ARGS[0], WTFCALLER);
+                    WithdrawToken(ARGS[0], ARGS[1]);
                     return true;
                 }
             }
@@ -182,7 +212,6 @@ namespace Vault
         private static void WithdrawToken(object hash, object amount)
         {
             CheckHash(hash);
-            CheckWitness(hash);
             CheckPositive(amount);
             object inside = GetVaultBalance();
             object outside = GetExternBalance();
@@ -207,7 +236,6 @@ namespace Vault
         private static bool TransferToken(object from, object to, object amount)
         {
             CheckHash(from);
-            CheckWitness(from);
             CheckHash(to);
             CheckNonNegative(amount);
             object balance = GetBalance(from);
@@ -227,7 +255,6 @@ namespace Vault
         // strategist
         private static void DoAction(object key, object bytes)
         {
-            CheckStrategist();
             object contract = Storage.CurrentContext.CreateMap(nameof(contract));
             object map = ((StorageMap)contract).Get("actions").Deserialize();
             object hash = ((Map<object, object>)map)[key];
@@ -237,20 +264,17 @@ namespace Vault
         // governance
         private static void SetAction(object map)
         {
-            CheckGovernance();
             object contract = Storage.CurrentContext.CreateMap(nameof(contract));
             ((StorageMap)contract).Put("actions", map.Serialize());
         }
         private static void SetGovernance(object hash)
         {
-            CheckGovernance();
             CheckHash(hash);
             object contract = Storage.CurrentContext.CreateMap(nameof(contract));
             ((StorageMap)contract).Put("governance", ((byte[])hash));
         }
         private static void SetStrategist(object hash)
         {
-            CheckGovernance();
             CheckHash(hash);
             object contract = Storage.CurrentContext.CreateMap(nameof(contract));
             ((StorageMap)contract).Put("strategist", ((byte[])hash));
@@ -365,26 +389,6 @@ namespace Vault
             ((StorageMap)contract).Put("total", ((byte[])total));
         }
         // check
-        private static void CheckGovernance()
-        {
-            object contract = Storage.CurrentContext.CreateMap(nameof(contract));
-            object hash = ((StorageMap)contract).Get("governance");
-            if (((byte[])hash).Length != 20)
-            {
-                return;
-            }
-            CheckWitness(hash);
-        }
-        private static void CheckStrategist()
-        {
-            object contract = Storage.CurrentContext.CreateMap(nameof(contract));
-            object hash = ((StorageMap)contract).Get("strategist");
-            if (((byte[])hash).Length != 20)
-            {
-                return;
-            }
-            CheckWitness(hash);
-        }
         private static void CheckHash(object hash)
         {
             if (((byte[])hash).Length == 20)
@@ -409,14 +413,13 @@ namespace Vault
             }
             throw new InvalidOperationException(nameof(CheckNonNegative));
         }
-        private static void CheckWitness(object hash)
+        private static void CheckWitness(object hash, object caller)
         {
             if (Runtime.CheckWitness((byte[])hash))
             {
                 return;
             }
-            object contract = Storage.CurrentContext.CreateMap(nameof(contract));
-            if (hash.Equals(((StorageMap)contract).Get("WTFCALLER")))
+            if (hash.Equals(caller))
             {
                 return;
             }
