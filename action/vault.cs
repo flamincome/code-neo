@@ -5,30 +5,30 @@ using System;
 using System.ComponentModel;
 using System.Numerics;
 
-namespace Proxy
+namespace Action
 {
-    public class Proxy : SmartContract
+    public class Vault : SmartContract
     {
         // constants
-        private static readonly byte[] TargetToken = "110e493ab5703f2fb8d1b0570397f8357e153318".HexToBytes();
+        // `110e493ab5703f2fb8d1b0570397f8357e153318` will be replace by the script hash of target token
+        private static readonly object TargetToken = "110e493ab5703f2fb8d1b0570397f8357e153318".HexToBytes();
         //predefs
         delegate object CallContract(string method, object[] args);
         public static object Main(string METHOD, object[] ARGS)
         {
-            byte[] WTFCALLER = ExecutionEngine.CallingScriptHash;
             if (Runtime.Trigger == TriggerType.Verification)
             {
                 return true;
             }
             else if (Runtime.Trigger == TriggerType.Application)
             {
+                byte[] WTFCALLER = ExecutionEngine.CallingScriptHash;
                 if (METHOD == "do")
                 {
-                    BigInteger amount = (BigInteger)ARGS[0];
-                    object[] args = new object[] { WTFCALLER, ExecutionEngine.ExecutingScriptHash, amount };
-                    CallContract call = (CallContract)TargetToken.ToDelegate();
-                    bool ret = (bool)call("transfer", args);
-                    if (ret)
+                    object bytes = ARGS[0];
+                    object args = new object[] { WTFCALLER, ExecutionEngine.ExecutingScriptHash, bytes };
+                    object call = ((CallContract)TargetToken)("transfer", ((object[])args));
+                    if (((bool)call))
                     {
                         return true;
                     }
@@ -37,10 +37,9 @@ namespace Proxy
                 if (METHOD == "refund")
                 {
                     BigInteger amount = (BigInteger)ARGS[0];
-                    object[] args = new object[] { ExecutionEngine.ExecutingScriptHash, WTFCALLER, amount };
-                    CallContract call = (CallContract)TargetToken.ToDelegate();
-                    bool ret = (bool)call("transfer", args);
-                    if (ret)
+                    object args = new object[] { ExecutionEngine.ExecutingScriptHash, WTFCALLER, amount };
+                    object call = ((CallContract)TargetToken)("transfer", ((object[])args));
+                    if (((bool)call))
                     {
                         return true;
                     }
@@ -48,9 +47,8 @@ namespace Proxy
                 }
                 if (METHOD == "balance")
                 {
-                    object[] args = new object[] { ExecutionEngine.ExecutingScriptHash };
-                    CallContract call = (CallContract)TargetToken.ToDelegate();
-                    return call("balanceOf", args);
+                    object args = new object[] { ExecutionEngine.ExecutingScriptHash };
+                    return ((CallContract)TargetToken)("balanceOf", ((object[])args));
                 }
             }
             return false;

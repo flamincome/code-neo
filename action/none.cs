@@ -5,9 +5,9 @@ using System;
 using System.ComponentModel;
 using System.Numerics;
 
-namespace Proxy
+namespace Action
 {
-    public class Proxy : SmartContract
+    public class None : SmartContract
     {
         delegate object CallContract(string method, object[] args);
         public static object Main(string method, object[] args)
@@ -35,7 +35,7 @@ namespace Proxy
         }
 #if DEBUG
         [DisplayName("do")]
-        public static bool do() => true;
+        public static bool do(byte[] bytes) => true;
         [DisplayName("refund")]
         public static bool refund(BigInteger amount) => true;
         [DisplayName("balance")]
