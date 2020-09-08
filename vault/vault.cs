@@ -123,6 +123,10 @@ namespace Vault
                 }
                 if (METHOD == "deposit")
                 {
+                    if (ARGS[0].Equals(ExecutionEngine.ExecutingScriptHash))
+                    {
+                        return false;
+                    }
                     DepositToken(ARGS[0], ARGS[1]);
                     return true;
                 }
